@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus Swap - Create Account</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #0b1329; }
+    </style>
+</head>
+<body class="text-white font-sans flex items-center justify-center min-h-screen">
+
+    <div class="bg-slate-900/80 p-8 rounded-2xl border border-slate-800 w-full max-w-md shadow-xl">
+        <h2 class="text-3xl font-bold text-center text-emerald-400 mb-6">Join Nexus Swap</h2>
+        
+        <form action="/register" method="post" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Username</label>
+                <input type="text" name="username" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-emerald-500 text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Email Address</label>
+                <input type="email" name="email" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-emerald-500 text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                <input type="password" name="password" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-emerald-500 text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Your Skills (e.g. Python, Hacking)</label>
+                <input type="text" name="skills" placeholder="What can you teach?" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-emerald-500 text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Your Interests (e.g. Design, Linux)</label>
+                <input type="text" name="interests" placeholder="What do you want to learn?" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-emerald-500 text-white">
+            </div>
+            
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold py-2.5 rounded-lg transition text-sm mt-4">
+                Create Account
+            </button>
+        </form>
+    </div>
+
+</body>
+</html>

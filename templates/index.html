@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus Swap - The Global Skill Exchange</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #0b1329; }
+    </style>
+</head>
+<body class="text-white font-sans">
+
+    <header class="p-6 flex justify-between items-center max-w-6xl mx-auto">
+        <div class="text-2xl font-bold tracking-wider text-emerald-400">NEXUS.SWAP</div>
+        <a href="/register" class="bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold px-6 py-2 rounded-full transition">Get started</a>
+    </header>
+
+    <main class="max-w-4xl mx-auto text-center mt-20 px-4">
+        <h1 class="text-5xl font-extrabold mb-6">Trade what you <span class="text-emerald-400">know</span>.<br>Learn what you <span class="text-emerald-400">love</span>.</h1>
+        <p class="text-gray-400 text-lg mb-8 max-w-xl mx-auto">Earn points by sharing your skills. Spend them learning from people across the globe — no middlemen. No language barriers.</p>
+        
+        <form action="/search" method="get" class="bg-slate-800 p-2 rounded-full flex max-w-md mx-auto mb-16 border border-slate-700">
+            <input type="text" name="query" placeholder="What do you want to learn today?" class="bg-transparent flex-grow px-4 outline-none text-sm text-white">
+            <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-slate-900 px-6 py-2 rounded-full font-bold text-sm transition">Explore</button>
+        </form>
+
+        <div class="grid md:grid-cols-3 gap-6 mt-12">
+            <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 text-left hover:border-emerald-500/50 transition">
+                <h3 class="text-xl font-bold text-emerald-400 mb-2">Swap & Earn</h3>
+                <p class="text-gray-400 text-sm">Teach for Points. Learn with Points.</p>
+            </div>
+            <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 text-left hover:border-emerald-500/50 transition">
+                <h3 class="text-xl font-bold text-emerald-400 mb-2">Auto-Translate Chat</h3>
+                <p class="text-gray-400 text-sm">Powered by AI translation.</p>
+            </div>
+            <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 text-left hover:border-emerald-500/50 transition">
+                <h3 class="text-xl font-bold text-emerald-400 mb-2">Privacy First</h3>
+                <p class="text-gray-400 text-sm">Hidden identity until swap is accepted.</p>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

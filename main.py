@@ -1,10 +1,15 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 import random
+import shutil
+import os
 
 app = FastAPI()
 
-# 1️⃣ نظام إدارة غرف المزامنة والاتصال لايف عبر الـ WebSockets
+# مجلد مؤقت لحفظ الملفات المرفوعة أثناء النقل
+UPLOAD_DIR = "shared_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: dict = {}
@@ -29,13 +34,45 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# 2️⃣ توليد رقم الغرفة المؤقت (4 أرقام)
 @app.get("/api/generate-room")
 async def generate_room():
     room_id = str(random.randint(1000, 9999))
     return {"room_id": room_id}
 
-# 3️⃣ نقطة اتصال الـ WebSocket لنقل البيانات بلمح البصر
+# ⚠️ نقطة استقبال وملقّف الملفات والصور والفيديوهات
+@app.post("/api/upload-file")
+async def upload_file(room_id: str = Form(...), file: UploadFile = File(...)):
+    # حد الحجم المجاني: 15 ميجابايت (15 * 1024 * 1024 بايت)
+    MAX_FREE_SIZE = 15 * 1024 * 1024 
+    
+    # قراءة حجم الملف المرفوع
+    file.file.seek(0, os.SEEK_END)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    
+    # إذا كان الفيديو أو الملف طويل وأكبر من الحد المجاني
+    if file_size > MAX_FREE_SIZE:
+        return {"status": "error", "message": "PRO_REQUIRED"}
+        
+    # حفظ الملف المجاني/القصير مؤقتاً لنقله
+    file_location = f"{UPLOAD_DIR}/{room_id}_{file.filename}"
+    with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # إرسال إشعار فوري عبر الـ WebSocket للجهاز الآخر بأن هناك ملف جاهز للتحميل
+    file_url = f"/download/{room_id}_{file.filename}"
+    await manager.broadcast(f"__FILE_READY__:{file.filename}:{file_url}", room_id, sender=None)
+    
+    return {"status": "success", "file_name": file.filename}
+
+@app.get("/download/{file_name}")
+async def download_file(file_name: str):
+    file_path = f"{UPLOAD_DIR}/{file_name}"
+    if os.path.exists(file_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(file_path)
+    return {"error": "File not found"}
+
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
     await manager.connect(websocket, room_id)
@@ -46,7 +83,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket, room_id)
 
-# 4️⃣ واجهة المستخدم العالمية المدمجة (HTML + CSS + JS مع مترجم لغات العالم)
+# الواجهة المحدثة مع زر رفع الملفات وفحص الحجم
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html lang="en">
@@ -56,86 +93,19 @@ HTML_CONTENT = """
     <title>LinkSync - Universal Instant Share</title>
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --accent-color: #3b82f6;
-            --text-color: #f8fafc;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .header {
-            width: 100%;
-            max-width: 500px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        /* تصميم مخصص لقائمة لغات العالم */
-        #google_translate_element {
-            background-color: var(--card-bg);
-            padding: 5px;
-            border-radius: 8px;
-            border: 1px solid var(--accent-color);
-        }
-        .card {
-            background-color: var(--card-bg);
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-        }
-        .room-display {
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--accent-color);
-            margin: 20px 0;
-            letter-spacing: 5px;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid #475569;
-            background-color: #0f172a;
-            color: white;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        button.main-btn {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.3s;
-        }
+        :root { --bg-color: #0f172a; --card-bg: #1e293b; --accent-color: #3b82f6; --text-color: #f8fafc; }
+        body { font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        .header { width: 100%; max-width: 500px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        #google_translate_element { background-color: var(--card-bg); padding: 5px; border-radius: 8px; border: 1px solid var(--accent-color); }
+        .card { background-color: var(--card-bg); padding: 30px; border-radius: 16px; width: 100%; max-width: 450px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); box-sizing: border-box; }
+        .room-display { font-size: 3rem; font-weight: bold; color: var(--accent-color); margin: 20px 0; letter-spacing: 5px; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #475569; background-color: #0f172a; color: white; box-sizing: border-box; }
+        button.main-btn { width: 100%; padding: 12px; background-color: var(--accent-color); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold; }
         button.main-btn:hover { background-color: #2563eb; }
         .box { display: none; }
         .box.active { display: block; }
-        /* إخفاء شريط جوجل العلوي المزعج للحفاظ على جمالية الموقع */
-        .goog-te-banner-frame.skiptranslate { display: none !important; }
-        body { top: 0px !important; }
+        .file-section { margin-top: 15px; padding: 15px; border: 2px dashed #475569; border-radius: 8px; }
+        .pro-popup { display: none; color: #f43f5e; background: #881337; padding: 10px; border-radius: 8px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -147,7 +117,7 @@ HTML_CONTENT = """
 
     <div class="card">
         <div id="setup-box" class="box active">
-            <h3>Share text, links, or code across devices instantly</h3>
+            <h3>Share text, links, images, or short videos instantly</h3>
             <button class="main-btn" onclick="createRoom()">Create Sync Room</button>
             <p style="margin: 15px 0;">OR</p>
             <input type="number" id="room-input" placeholder="Enter 4-digit Room Code">
@@ -157,8 +127,16 @@ HTML_CONTENT = """
         <div id="sync-box" class="box">
             <h3>Your Sync Room Code</h3>
             <div class="room-display" id="room-number">----</div>
-            <textarea id="data-transfer" rows="8" placeholder="Paste your text, links, or code here... Everything syncs to the other device live!" oninput="sendData()"></textarea>
-            <p style="font-size: 0.85rem; color: #94a3b8;">🔒 Data auto-destructs instantly when connection closes.</p>
+            <textarea id="data-transfer" rows="5" placeholder="Paste text or links here..." oninput="sendData()"></textarea>
+            
+            <div class="file-section">
+                <h4>📷 Share Images & Short Videos</h4>
+                <input type="file" id="file-chooser" onchange="uploadFile()">
+                <div class="pro-popup" id="pro-warning">⚠️ Video too long! Please upgrade to PRO to share large files.</div>
+                <div id="file-link-container" style="margin-top:10px;"></div>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-top:15px;">🔒 Free limit: Videos up to 15MB. Data auto-destructs on close.</p>
         </div>
     </div>
 
@@ -166,12 +144,8 @@ HTML_CONTENT = """
         let ws;
         let currentRoomId;
 
-        // تشغيل أداة الترجمة لجميع اللغات تلقائياً
         function googleTranslateElementInit() {
-            new google.translate.TranslateElement({
-                pageLanguage: 'en',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-            }, 'google_translate_element');
+            new google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
         }
 
         async function createRoom() {
@@ -182,11 +156,7 @@ HTML_CONTENT = """
 
         function joinRoom() {
             let roomId = document.getElementById('room-input').value;
-            if(roomId.length === 4) {
-                initWebSocket(roomId);
-            } else {
-                alert('Please enter a valid 4-digit code');
-            }
+            if(roomId.length === 4) initWebSocket(roomId);
         }
 
         function initWebSocket(roomId) {
@@ -201,14 +171,41 @@ HTML_CONTENT = """
             };
 
             ws.onmessage = (event) => {
-                document.getElementById('data-transfer').value = event.data;
+                if(event.data.startsWith("__FILE_READY__")) {
+                    let parts = event.data.split(":");
+                    let fileName = parts[1];
+                    let fileUrl = parts.slice(2).join(":");
+                    document.getElementById('file-link-container').innerHTML = `📥 Incoming File: <a href="${fileUrl}" target="_blank" style="color:#3b82f6; font-weight:bold;">Download ${fileName}</a>`;
+                } else {
+                    document.getElementById('data-transfer').value = event.data;
+                }
             };
         }
 
         function sendData() {
             let text = document.getElementById('data-transfer').value;
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(text);
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send(text);
+        }
+
+        async function uploadFile() {
+            let fileInput = document.getElementById('file-chooser');
+            let warning = document.getElementById('pro-warning');
+            warning.style.display = "none";
+            
+            if(fileInput.files.length === 0) return;
+            
+            let formData = new FormData();
+            formData.append("room_id", currentRoomId);
+            formData.append("file", fileInput.files[0]);
+            
+            let response = await fetch('/api/upload-file', { method: 'POST', body: formData });
+            let result = await response.json();
+            
+            if(result.status === "error" && result.message === "PRO_REQUIRED") {
+                warning.style.display = "block"; // إظهار رسالة اشتراك برو للملفات الطويلة
+                fileInput.value = "";
+            } else {
+                alert("File sent successfully!");
             }
         }
     </script>
